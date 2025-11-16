@@ -93,14 +93,10 @@
 - 📥 Column Mapping - Data preparation and field mapping
 - ✅ Data Validation - Quality checks and reconciliation
 
-**Stage 2: Scenario Planning & Forecasting (Layers 2 & 3)**
+**Stage 2: Scenario Planning & Forecasting (Core Views)**
 - 💰 Revenue Forecasting - Interactive revenue projections
 - 📊 Dynamic Reporting - Scenario-based analysis
 - 🤖 AI Insights - Natural language business intelligence
-- 📈 Advanced Forecasting Views (expandable):
-  - 📊 Accounting View - P&L format forecasting
-  - 💼 Sales View - Pipeline-based sales forecasting  
-  - 📈 Management Info - KPI dashboards and metrics
 
 **Status:** Production-ready ✓
 
