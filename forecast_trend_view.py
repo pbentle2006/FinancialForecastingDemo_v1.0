@@ -160,167 +160,139 @@ class ForecastTrendView:
             return f"{millions:.1f}m"
     
     def render_forecast_trend(self, df, scenario_name='Base Case'):
-        """Render the forecast trend view"""
+        """Render Forecast Trend view with fiscal quarter aggregation"""
         
-        st.markdown(f"### 📈 Forecast Trend Analysis - {scenario_name}")
-        st.markdown("Aggregate monthly forecast data into fiscal quarters to show revenue phasing trend.")
+        st.markdown(f"### 📈 Forecast Trend - {scenario_name}")
+        st.markdown("Aggregate monthly forecast data into fiscal quarters")
         
-        # Identify forecast columns
-        forecast_cols = self.identify_forecast_columns(df)
+        if df is None or len(df) == 0:
+            st.error("❌ No data available for forecast trend analysis")
+            return
+        
+        # Detect forecast columns (columns that look like dates/periods)
+        forecast_cols = []
+        for col in df.columns:
+            # Look for columns that contain year-month patterns like '2025-04', 'fy2025-01', etc.
+            if any(pattern in col.lower() for pattern in ['fy', '202', '203']):
+                forecast_cols.append(col)
+            # Also check for columns with numeric patterns that might be periods
+            elif any(char.isdigit() for char in col) and ('-' in col or len(col) >= 6):
+                forecast_cols.append(col)
         
         if not forecast_cols:
-            st.error("❌ No monthly forecast columns found. Expected format: YYYY-MM (e.g., 2025-04, 2025-05)")
-            st.info("💡 Forecast columns should start from column BR onwards with format: 2025-04, 2025-05, etc.")
-            return None
-        
-        st.success(f"✓ Found {len(forecast_cols)} monthly forecast columns: {forecast_cols[0]} to {forecast_cols[-1]}")
-        
-        st.markdown("---")
-        
-        # Control panel
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**📊 Group By:**")
+            st.warning("⚠️ No forecast columns detected. Looking for columns with year/month patterns.")
+            st.info("💡 Expected format: '2025-04', 'FY25-Q1', 'fy2025-01', etc.")
             
-            # Detect available dimensions
-            available_dimensions = {'none': '📊 Total Only (No Grouping)'}
-            if 'account_name' in df.columns or 'Account Name' in df.columns:
-                available_dimensions['account_name'] = '🏢 By Account'
-            if 'industry_vertical' in df.columns or 'Industry Vertical' in df.columns:
-                available_dimensions['industry_vertical'] = '🏭 By Industry Vertical'
-            if 'product_name' in df.columns or 'Product Name' in df.columns:
-                available_dimensions['product_name'] = '📦 By Product Name'
-            if 'sales_stage' in df.columns or 'Sales Stage' in df.columns:
-                available_dimensions['sales_stage'] = '🎯 By Sales Stage'
-            
-            selected_dimension = st.radio(
-                "Select grouping",
-                options=list(available_dimensions.keys()),
-                format_func=lambda x: available_dimensions[x],
-                key=f"forecast_dimension_{scenario_name}",
-                label_visibility="collapsed"
-            )
+            # Show sample columns for debugging
+            sample_cols = list(df.columns)[:10]
+            st.write(f"**Available columns:** {sample_cols}")
+            return
         
-        with col2:
-            st.markdown("**💰 Include Total TCV:**")
-            include_tcv = st.checkbox(
-                "Show Total TCV column",
-                value=True,
-                key=f"include_tcv_{scenario_name}",
-                help="Display the Total Contract Value alongside forecast trend"
-            )
+        st.success(f"✅ Found {len(forecast_cols)} forecast columns")
         
-        st.markdown("---")
+        # Dimension selection
+        available_dimensions = {'none': '📊 Total Only (No Grouping)'}
+        if 'account_name' in df.columns:
+            available_dimensions['account_name'] = '🏢 By Account'
+        if 'industry_vertical' in df.columns:
+            available_dimensions['industry_vertical'] = '🏭 By Industry Vertical'
+        if 'product_name' in df.columns:
+            available_dimensions['product_name'] = '📦 By Product Name'
+        if 'sales_stage' in df.columns:
+            available_dimensions['sales_stage'] = '🎯 By Sales Stage'
         
-        # Normalize column names
+        selected_dimension = st.radio(
+            "Group by:",
+            options=list(available_dimensions.keys()),
+            format_func=lambda x: available_dimensions[x],
+            key=f"forecast_dimension_{scenario_name}",
+            horizontal=True
+        )
         df_norm = df.copy()
-        col_mapping = {}
-        for col in df.columns:
-            normalized = col.lower().replace(' ', '_')
-            col_mapping[col] = normalized
-        df_norm.columns = [col_mapping[col] for col in df.columns]
         
-        # Get grouping column
-        group_by = None if selected_dimension == 'none' else selected_dimension
+        # Data validation
+        with st.expander("🔍 Data Validation", expanded=False):
+            st.write(f"**DataFrame shape:** {df.shape}")
+            st.write(f"**Columns:** {list(df.columns)}")
+            st.write(f"**Forecast columns found:** {forecast_cols}")
         
-        # Aggregate to fiscal quarters
-        result_df, sorted_quarters = self.aggregate_to_fiscal_quarters(df_norm, forecast_cols, group_by)
+        # Convert 'none' to None for processing
+        if selected_dimension == 'none':
+            selected_dimension = None
         
-        # Add Total TCV if requested
-        if include_tcv:
-            # Try to find TCV column with various names
-            tcv_col = None
-            for possible_name in ['revenue_tcv_usd', 'tcv_usd', 'tcv']:
-                if possible_name in df_norm.columns:
-                    tcv_col = possible_name
-                    break
+        try:
+            aggregated_df, sorted_quarters = self.aggregate_to_fiscal_quarters(df_norm, forecast_cols, selected_dimension)
             
-            if tcv_col:
-                
-                if group_by:
-                    # Sum TCV by group
-                    df_norm[tcv_col] = pd.to_numeric(df_norm[tcv_col], errors='coerce').fillna(0)
-                    tcv_data = df_norm.groupby(group_by)[tcv_col].sum()
-                    result_df = result_df.merge(
-                        tcv_data.rename('Total_TCV'),
-                        left_on=group_by,
-                        right_index=True,
-                        how='left'
-                    )
-                else:
-                    # Total TCV
-                    df_norm[tcv_col] = pd.to_numeric(df_norm[tcv_col], errors='coerce').fillna(0)
-                    result_df['Total_TCV'] = df_norm[tcv_col].sum()
+            if aggregated_df is None or len(aggregated_df) == 0:
+                st.error("❌ Failed to aggregate forecast data")
+                return
+            
+            st.success(f"✅ Successfully aggregated data into {len(aggregated_df)} groups")
+            
+            # Display results
+            self._display_forecast_results(aggregated_df, forecast_cols, selected_dimension)
+            
+        except Exception as e:
+            st.error(f"❌ Error processing forecast data: {str(e)}")
+            st.info("💡 This might be due to data format issues or missing columns")
+
+    def format_number_millions(self, value):
+        """Format number in millions (e.g., 12,853m or 2.6m)"""
+        if pd.isna(value) or value == 0:
+            return "0m"
         
-        # Display summary metrics
+        millions = value / 1_000_000
+        
+        # If >= 1000m, show without decimals (e.g., 12,853m)
+        if millions >= 1000:
+            return f"{millions:,.0f}m"
+        # If >= 10m, show 1 decimal (e.g., 123.5m)
+            return
+        
+        # Show summary metrics
         st.markdown("**📈 Summary Metrics:**")
-        
         summary_cols = st.columns(4)
         
         with summary_cols[0]:
-            if include_tcv and 'Total_TCV' in result_df.columns:
-                total_tcv = result_df['Total_TCV'].sum()
-                st.metric("Total TCV", self.format_number_millions(total_tcv))
+            if 'Total_Forecast' in df.columns:
+                total_forecast = df['Total_Forecast'].sum()
+                st.metric("Total Forecast", self.format_number_millions(total_forecast))
+            else:
+                st.metric("Groups", len(df))
         
         with summary_cols[1]:
-            total_forecast = result_df['Total_Forecast'].sum()
-            st.metric("Total Forecast", self.format_number_millions(total_forecast))
+            quarters = [col for col in df.columns if 'FY' in str(col)]
+            st.metric("Forecast Quarters", len(quarters))
         
         with summary_cols[2]:
-            st.metric("Forecast Periods", len(sorted_quarters))
+            if group_by:
+                st.metric(f"Number of {group_by.replace('_', ' ').title()}", len(df))
+            else:
+                st.metric("Data Points", len(df))
         
         with summary_cols[3]:
-            if group_by:
-                st.metric(f"Number of {group_by.replace('_', ' ').title()}", len(result_df))
-            else:
-                st.metric("Monthly Columns", len(forecast_cols))
+            avg_quarterly = df.select_dtypes(include=[np.number]).mean().mean()
+            st.metric("Avg Quarterly", self.format_number_millions(avg_quarterly))
         
         st.markdown("---")
         
-        # Format display dataframe
-        display_df = result_df.copy()
+        # Display data table
+        st.markdown("**📋 Forecast Data:**")
         
-        # Reorder columns
-        if group_by:
-            cols_order = [group_by]
-        else:
-            cols_order = ['Metric']
+        # Format numeric columns for display
+        display_df = df.copy()
+        numeric_cols = display_df.select_dtypes(include=[np.number]).columns
+        for col in numeric_cols:
+            display_df[col] = display_df[col].apply(self.format_number_millions)
         
-        if include_tcv and 'Total_TCV' in display_df.columns:
-            cols_order.append('Total_TCV')
-        
-        cols_order.extend(sorted_quarters)
-        cols_order.append('Total_Forecast')
-        
-        display_df = display_df[cols_order]
-        
-        # Format numbers in millions
-        for col in display_df.columns:
-            if col not in [group_by, 'Metric']:
-                display_df[col] = display_df[col].apply(self.format_number_millions)
-        
-        # Rename columns for display
-        display_df.columns = [col.replace('_', ' ').title() if col not in sorted_quarters + ['Total_TCV', 'Total_Forecast'] else col for col in display_df.columns]
-        
-        # Display the report
-        st.markdown("**📋 Forecast Trend Report:**")
-        st.info("💡 Tip: Values are displayed in millions (e.g., 3.10m = $3,100,000)")
-        
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True
-        )
+        st.dataframe(display_df, use_container_width=True)
         
         # Add download button
-        st.markdown("---")
-        csv = display_df.to_csv(index=False)
+        csv = df.to_csv(index=False)
         st.download_button(
             label="📥 Download Forecast Trend Report",
             data=csv,
-            file_name=f"forecast_trend_{scenario_name.lower().replace(' ', '_')}.csv",
-            mime="text/csv"
+            file_name="forecast_trend_report.csv",
+            mime="text/csv",
+            use_container_width=False
         )
-        
-        return display_df
