@@ -32,12 +32,31 @@ With 6 months of realistic financial actuals and AI-generated forecasts.
 
 ## 🚀 Quick Start
 
+### Streamlit Cloud Deployment
+
+1. **Go to Streamlit Cloud**
+   - Visit [share.streamlit.io](https://share.streamlit.io)
+   - Sign in with your GitHub account
+
+2. **Connect Repository**
+   - Click "New app"
+   - Select "From existing repo"
+   - Connect to: `pbentle2006/FinancialForecastingDemo_v1.0`
+   - Branch: `main`
+
+3. **Configure Deployment**
+   - **Main file path**: `app.py`
+   - **Python version**: 3.11
+   - Click "Deploy!"
+
+4. **App will be live in minutes!**
+
 ### Local Development
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd streamlit-forecast-platform
+   git clone https://github.com/pbentle2006/FinancialForecastingDemo_v1.0.git
+   cd FinancialForecastingDemo_v1.0
    ```
 
 2. **Install dependencies**
@@ -45,29 +64,13 @@ With 6 months of realistic financial actuals and AI-generated forecasts.
    pip install -r requirements.txt
    ```
 
-3. **Run the application**
+3. **Run locally**
    ```bash
    streamlit run app.py
    ```
 
-4. **Open your browser**
+4. **Open browser**
    Navigate to `http://localhost:8501`
-
-### Streamlit Cloud Deployment
-
-1. **Push to GitHub**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git push origin main
-   ```
-
-2. **Deploy on Streamlit Cloud**
-   - Go to [share.streamlit.io](https://share.streamlit.io)
-   - Connect your GitHub repository
-   - Select `app.py` as the main file
-   - Deploy!
 
 ## 📊 Usage Guide
 
