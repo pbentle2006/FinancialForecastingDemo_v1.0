@@ -124,8 +124,8 @@ class AIInsightsInterface:
                     'Question': entry['query'],
                     'Category': entry['response'].get('category', 'summary'),
                     'Confidence': entry['response'].get('confidence', 0.5),
-                    'Insights': '\n'.join(entry['response'].get('insights', [])),
-                    'Recommendations': '\n'.join(entry['response'].get('recommendations', []))
+                    'Insights': '\n'.join(entry['response']['response'].get('insights', [])),
+                    'Recommendations': '\n'.join(entry['response']['response'].get('recommendations', []))
                 })
 
             chat_df = pd.DataFrame(chat_data)
@@ -166,7 +166,8 @@ class AIInsightsInterface:
 
             # AI response
             with st.chat_message("assistant"):
-                response = chat_entry['response']
+                # The response structure is: {query, category, response: {type, insights, ...}, ...}
+                response_data = chat_entry['response']['response']
 
                 # Display category badge
                 category_colors = {
@@ -178,25 +179,25 @@ class AIInsightsInterface:
                     'summary': '⚪'
                 }
 
-                category_emoji = category_colors.get(response.get('category', 'summary'), '🤖')
-                category_name = response.get('category', 'summary').title()
+                category_emoji = category_colors.get(chat_entry['response'].get('category', 'summary'), '🤖')
+                category_name = chat_entry['response'].get('category', 'summary').title()
                 st.markdown(f"**AI Analysis** {category_emoji} *{category_name}*")
 
                 # Display insights
-                if 'insights' in response and response['insights']:
-                    for insight in response['insights']:
+                if 'insights' in response_data and response_data['insights']:
+                    for insight in response_data['insights']:
                         st.markdown(insight)
                 else:
                     st.markdown("*No insights available for this query.*")
 
                 # Display recommendations if available
-                if 'recommendations' in response and response['recommendations']:
+                if 'recommendations' in response_data and response_data['recommendations']:
                     with st.expander("💡 Recommendations", expanded=False):
-                        for rec in response['recommendations']:
+                        for rec in response_data['recommendations']:
                             st.markdown(f"• {rec}")
 
                 # Display confidence score
-                confidence = response.get('confidence', 0.5)
+                confidence = chat_entry['response'].get('confidence', 0.5)
                 confidence_color = "🟢" if confidence > 0.8 else "🟡" if confidence > 0.6 else "🟠"
                 st.caption(f"Confidence: {confidence_color} {confidence:.1%}")
 
