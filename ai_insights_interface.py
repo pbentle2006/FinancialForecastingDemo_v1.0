@@ -122,9 +122,9 @@ class AIInsightsInterface:
                 chat_data.append({
                     'Timestamp': entry['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
                     'Question': entry['query'],
-                    'Category': entry['response']['category'],
+                    'Category': entry['response'].get('category', 'summary'),
                     'Confidence': entry['response'].get('confidence', 0.5),
-                    'Insights': '\n'.join(entry['response']['insights']),
+                    'Insights': '\n'.join(entry['response'].get('insights', [])),
                     'Recommendations': '\n'.join(entry['response'].get('recommendations', []))
                 })
 
@@ -178,12 +178,16 @@ class AIInsightsInterface:
                     'summary': '⚪'
                 }
 
-                category_emoji = category_colors.get(response['category'], '🤖')
-                st.markdown(f"**AI Analysis** {category_emoji} *{response['category'].title()}*")
+                category_emoji = category_colors.get(response.get('category', 'summary'), '🤖')
+                category_name = response.get('category', 'summary').title()
+                st.markdown(f"**AI Analysis** {category_emoji} *{category_name}*")
 
                 # Display insights
-                for insight in response['insights']:
-                    st.markdown(insight)
+                if 'insights' in response and response['insights']:
+                    for insight in response['insights']:
+                        st.markdown(insight)
+                else:
+                    st.markdown("*No insights available for this query.*")
 
                 # Display recommendations if available
                 if 'recommendations' in response and response['recommendations']:
