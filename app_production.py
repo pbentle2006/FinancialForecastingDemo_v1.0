@@ -16,8 +16,6 @@ from data_validation_engine import DataValidationEngine
 from management_information_view import ManagementInformationView
 from dynamic_reporting_view import DynamicReportingView
 from scenario_manager import ScenarioManager
-from accounting_view import AccountingView
-from sales_view import SalesView
 
 # Import new revenue forecasting components
 from revenue_forecasting_dashboard import RevenueForecastingDashboard
@@ -392,81 +390,6 @@ elif st.session_state.workflow_stage == 'forecast':
 
         st.markdown("---")
 
-        # Layer 2: Forecasting Views (Sub-navigation)
-        with st.expander("📈 Advanced Forecasting Views", expanded=False):
-            layer2_view = st.radio(
-                "Select Forecasting Method",
-                ["📊 Accounting View", "💼 Sales View", "📈 Management Info"],
-                key="layer2_view_selector",
-                label_visibility="collapsed"
-            )
-
-            if layer2_view == "📊 Accounting View":
-                # Accounting View (Layer 2)
-                st.markdown("#### 📊 Accounting View - P&L Format")
-
-                validated_df = st.session_state.get('validated_df')
-                if validated_df is None:
-                    st.warning("⚠️ No validated data available. Please complete data validation first.")
-                    if st.button("← Back to Data Validation", use_container_width=True):
-                        st.session_state.workflow_stage = 'validate'
-                        st.rerun()
-                else:
-                    # Initialize accounting view
-                    accounting_view = AccountingView()
-
-                    # Get scenario assumptions
-                    assumptions = scenario_mgr.get_scenario_assumptions(active_scenario)
-
-                    if assumptions:
-                        # Render accounting view
-                        accounting_view.render_accounting_view(validated_df, active_scenario, assumptions)
-                    else:
-                        st.warning("⚠️ No scenario assumptions available. Please set up assumptions first.")
-
-            elif layer2_view == "💼 Sales View":
-                # Sales View (Layer 2)
-                st.markdown("#### 💼 Sales Pipeline View")
-
-                validated_df = st.session_state.get('validated_df')
-                if validated_df is None:
-                    st.warning("⚠️ No validated data available. Please complete data validation first.")
-                    if st.button("← Back to Data Validation", use_container_width=True):
-                        st.session_state.workflow_stage = 'validate'
-                        st.rerun()
-                else:
-                    # Initialize sales view
-                    sales_view = SalesView()
-
-                    # Get scenario assumptions
-                    assumptions = scenario_mgr.get_scenario_assumptions(active_scenario)
-
-                    if assumptions:
-                        # Set pipeline data and render sales view
-                        sales_view.set_pipeline_data(validated_df, active_scenario)
-                        sales_view.render_sales_view(active_scenario, assumptions)
-                    else:
-                        st.warning("⚠️ No scenario assumptions available. Please set up assumptions first.")
-
-            elif layer2_view == "📈 Management Info":
-                # Management Information View (Layer 2)
-                st.markdown("#### 📈 Management Information Dashboard")
-
-                validated_df = st.session_state.get('validated_df')
-                if validated_df is None:
-                    st.warning("⚠️ No validated data available. Please complete data validation first.")
-                    if st.button("← Back to Data Validation", use_container_width=True):
-                        st.session_state.workflow_stage = 'validate'
-                        st.rerun()
-                else:
-                    # Initialize management information view
-                    mi_view = ManagementInformationView()
-
-                    # Render MI dashboard
-                    mi_view.render_mi_view(validated_df)
-
-        st.markdown("---")
-
         # Main forecasting & reporting view handler
         if "Revenue Forecasting" in forecasting_view:
             # Revenue Forecasting View
@@ -533,15 +456,9 @@ elif st.session_state.workflow_stage == 'forecast':
         # Navigation
         st.markdown("---")
         
-        nav_col1, nav_col2 = st.columns([1, 3])
-        
-        with nav_col1:
-            if st.button("← Back to Validation", use_container_width=True):
-                st.session_state.workflow_stage = 'validate'
-                st.rerun()
-        
-        with nav_col2:
-            st.info("💡 Layer 3 (Reporting & Insights) coming soon! Export and visualization features will be added next.")
+        if st.button("← Back to Validation", use_container_width=True):
+            st.session_state.workflow_stage = 'validate'
+            st.rerun()
 
 # ==================== LAYER 3: REPORTING (Coming Soon) ====================
 
