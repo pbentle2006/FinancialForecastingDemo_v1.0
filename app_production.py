@@ -15,10 +15,10 @@ from data_validation_engine import DataValidationEngine
 # Import Layer 2: Forecasting Engine
 from management_information_view import ManagementInformationView
 from dynamic_reporting_view import DynamicReportingView
-from forecast_trend_view import ForecastTrendView
-from data_diagnostic_view import DataDiagnosticView
-from sales_view import SalesView
 from scenario_manager import ScenarioManager
+
+# Import new revenue forecasting components
+from revenue_forecasting_dashboard import RevenueForecastingDashboard
 
 # Import existing components
 from data_transformer import DataTransformer
@@ -381,14 +381,46 @@ elif st.session_state.workflow_stage == 'forecast':
         # View selector
         view_type = st.radio(
             "Select View",
-            ["📊 Dynamic Reporting", "📈 Forecast Trend", "🔍 Data Diagnostic", "💼 Sales Pipeline"],
+            ["💰 Revenue Forecasting", "📊 Dynamic Reporting"],
             horizontal=True,
             key="view_selector"
         )
         
         st.markdown("---")
         
-        if "Dynamic" in view_type:
+        if "Revenue Forecasting" in view_type:
+            # Revenue Forecasting View
+            validated_df = st.session_state.validated_df
+            revenue_dashboard = RevenueForecastingDashboard(validated_df)
+            
+            # Get assumptions for active scenario
+            assumptions = scenario_mgr.get_scenario_assumptions(active_scenario)
+            
+            if assumptions:
+                # Render forecast for current scenario
+                forecast_df = revenue_dashboard.render_revenue_forecast_section(active_scenario, assumptions)
+                
+                # Scenario comparison (if we have multiple scenarios)
+                all_scenarios = scenario_mgr.get_scenario_list()
+                if len(all_scenarios) > 1:
+                    st.markdown("---")
+                    
+                    # Generate forecasts for all scenarios
+                    scenarios_data = {}
+                    for scenario in all_scenarios:
+                        scenario_assumptions = scenario_mgr.get_scenario_assumptions(scenario)
+                        if scenario_assumptions:
+                            scenario_forecast = revenue_dashboard.forecaster.forecast_revenue(
+                                scenario_assumptions, periods=8, scenario_name=scenario
+                            )
+                            scenarios_data[scenario] = scenario_forecast
+                    
+                    if scenarios_data:
+                        revenue_dashboard.render_scenario_comparison(scenarios_data)
+            else:
+                st.warning("No assumptions found for this scenario. Please check scenario configuration.")
+        
+        elif "Dynamic" in view_type:
             # Dynamic Reporting View
             validated_df = st.session_state.validated_df
             
@@ -406,47 +438,6 @@ elif st.session_state.workflow_stage == 'forecast':
                 if available_dims:
                     selected_dim = st.session_state.get(f"dimension_{active_scenario}", list(available_dims.keys())[0])
                     dynamic_report.set_report_data(edited_df, active_scenario, selected_dim)
-        
-        elif "Forecast Trend" in view_type:
-            # Forecast Trend View
-            forecast_trend = ForecastTrendView()
-            validated_df = st.session_state.validated_df
-            
-            # Render forecast trend analysis
-            forecast_trend.render_forecast_trend(
-                validated_df,
-                scenario_name=active_scenario
-            )
-        
-        elif "Data Diagnostic" in view_type:
-            # Data Diagnostic View
-            diagnostic = DataDiagnosticView()
-            validated_df = st.session_state.validated_df
-            
-            # Render diagnostic report
-            diagnostic.render_diagnostic(validated_df)
-        
-        else:
-            # Sales View
-            pipeline_df = sales.get_pipeline_data(active_scenario)
-            
-            if pipeline_df is None or len(pipeline_df) == 0:
-                # Try to transform uploaded data
-                validated_df = st.session_state.validated_df
-                pipeline_df = sales.transform_to_pipeline_format(validated_df)
-                
-                if len(pipeline_df) == 0:
-                    pipeline_df = sales.create_pipeline_template()
-            
-            # Render sales view
-            edited_df = sales.render_sales_view(
-                pipeline_df,
-                scenario_name=active_scenario,
-                editable=True
-            )
-            
-            # Save changes
-            sales.set_pipeline_data(edited_df, active_scenario)
         
         # Assumptions editor
         st.markdown("---")
