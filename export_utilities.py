@@ -9,6 +9,7 @@ import numpy as np
 from datetime import datetime
 from io import BytesIO
 import base64
+from typing import Dict, Any, Tuple
 
 class ExportUtilities:
     """Utilities for exporting financial reports and data"""
