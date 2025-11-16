@@ -89,14 +89,18 @@
 ## 🎯 **Unified Platform Integration** - COMPLETE
 
 ### Navigation Views Available:
-1. **📥 Column Mapping** - Data preparation and field mapping
-2. **✅ Data Validation** - Quality checks and reconciliation
-3. **📊 Accounting View** - P&L format forecasting
-4. **💼 Sales View** - Pipeline-based sales forecasting
-5. **📈 Management Info** - KPI dashboards and metrics
-6. **💰 Revenue Forecasting** - Interactive revenue projections
-7. **📊 Dynamic Reporting** - Scenario-based analysis
-8. **🤖 AI Insights** - Natural language business intelligence
+**Stage 1: Data Foundation (Layer 1)**
+- 📥 Column Mapping - Data preparation and field mapping
+- ✅ Data Validation - Quality checks and reconciliation
+
+**Stage 2: Scenario Planning & Forecasting (Layers 2 & 3)**
+- 💰 Revenue Forecasting - Interactive revenue projections
+- 📊 Dynamic Reporting - Scenario-based analysis
+- 🤖 AI Insights - Natural language business intelligence
+- 📈 Advanced Forecasting Views (expandable):
+  - 📊 Accounting View - P&L format forecasting
+  - 💼 Sales View - Pipeline-based sales forecasting  
+  - 📈 Management Info - KPI dashboards and metrics
 
 **Status:** Production-ready ✓
 
