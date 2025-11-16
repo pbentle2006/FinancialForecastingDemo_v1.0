@@ -224,7 +224,61 @@ class AccountingView:
         
         return df_display
     
-    def render_accounting_view(self, df, scenario_name='Base Case', editable=True):
+    def render_accounting_view(self, df, scenario_name, assumptions, editable=True):
+        """Render the accounting view with proper data validation and transformation"""
+        
+        st.markdown("### 📊 Accounting View - P&L Format")
+        
+        # Check if data is in expected P&L format
+        if 'Line Item' not in df.columns:
+            st.error("❌ **Data Format Error**")
+            st.markdown("""
+            The Accounting View requires data in P&L (Profit & Loss) format with a 'Line Item' column.
+            
+            **Expected format:**
+            - Column: 'Line Item' (containing accounting line items)
+            - Columns: Period columns (Q1, Q2, Q3, Q4, FY, etc.)
+            - Rows: Revenue, COGS, Expenses, etc.
+            
+            **Current data columns:** """ + ", ".join(df.columns.tolist()))
+            
+            st.markdown("---")
+            st.markdown("**💡 Solution:** Use the Revenue Forecasting or Dynamic Reporting views first, or ensure your data is in proper P&L format.")
+            
+            # Offer to create a template
+            if st.button("📄 Create P&L Template", type="primary"):
+                template_df = self.create_pl_template()
+                st.success("✅ P&L template created! You can now edit it below.")
+                
+                # Show the template
+                st.markdown("### 📋 P&L Template")
+                st.dataframe(template_df, use_container_width=True)
+                
+                # Allow download
+                csv = template_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Template CSV",
+                    data=csv,
+                    file_name="pl_template.csv",
+                    mime="text/csv",
+                    key="download_template"
+                )
+                
+                st.markdown("""
+                **Instructions:**
+                1. Download the template CSV
+                2. Fill in your P&L data
+                3. Upload it through the data foundation workflow
+                4. Return to this Accounting View
+                """)
+            
+            # Don't proceed if data format is wrong
+            return None
+        
+        # Data is in correct format, proceed with rendering
+        return self._render_accounting_view_internal(df, scenario_name, assumptions, editable)
+    
+    def _render_accounting_view_internal(self, df, scenario_name, assumptions, editable=True):
         """Render the accounting view interface"""
         
         st.markdown(f"### 📊 Accounting View - P&L Statement")
