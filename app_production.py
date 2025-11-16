@@ -366,7 +366,6 @@ elif st.session_state.workflow_stage == 'forecast':
         # Initialize components
         scenario_mgr = ScenarioManager()
         dynamic_report = DynamicReportingView()
-        sales = SalesView()
         
         # Scenario selector
         st.markdown("### 🎯 Scenario Management")
