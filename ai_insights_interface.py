@@ -8,6 +8,7 @@ import pandas as pd
 from datetime import datetime
 from nlp_query_engine import NLPQueryEngine
 from export_utilities import ExportUtilities
+from typing import Dict, Any
 
 class AIInsightsInterface:
     """Interactive interface for natural language business intelligence queries"""
