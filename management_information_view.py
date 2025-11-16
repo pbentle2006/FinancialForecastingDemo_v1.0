@@ -49,9 +49,13 @@ class ManagementInformationView:
             return None
     
     def normalize_column_names(self, df):
-        """Normalize column names"""
+        """Normalize column names and handle duplicates"""
         df_norm = df.copy()
         column_mapping = {}
+        
+        # First, identify and handle duplicate column names
+        seen_names = set()
+        duplicate_cols = []
         
         for col in df.columns:
             normalized = col.lower().replace(' ', '_')
@@ -63,9 +67,21 @@ class ManagementInformationView:
             elif normalized == 'margin':
                 normalized = 'margin_usd'
             
+            # Handle duplicates by adding suffix
+            if normalized in seen_names:
+                counter = 1
+                original_normalized = normalized
+                while normalized in seen_names:
+                    normalized = f"{original_normalized}_{counter}"
+                    counter += 1
+                duplicate_cols.append((col, normalized))
+            
+            seen_names.add(normalized)
             column_mapping[col] = normalized
         
+        # Rename columns
         df_norm.columns = [column_mapping[col] for col in df.columns]
+        
         return df_norm, column_mapping
     
     def format_number_millions(self, value):
@@ -189,7 +205,16 @@ class ManagementInformationView:
         st.markdown("Analyze your data with interactive tables and visualizations")
         
         # Normalize columns
-        df_norm, _ = self.normalize_column_names(df)
+        df_norm, column_mapping = self.normalize_column_names(df)
+        
+        # Debug: Show column mapping
+        with st.expander("🔍 Column Mapping (Click to expand)", expanded=False):
+            st.write("**Original → Normalized:**")
+            for orig, norm in column_mapping.items():
+                if orig != norm:
+                    st.write(f"`{orig}` → `{norm}`")
+                else:
+                    st.write(f"`{orig}` (unchanged)")
         
         # Detect available dimensions
         available_dimensions = {}
@@ -211,8 +236,51 @@ class ManagementInformationView:
         if 'margin_usd' in df_norm.columns:
             available_metrics.append('margin_usd')
         
-        if not available_dimensions or not available_metrics:
-            st.error("❌ Required columns not found. Please ensure data is properly mapped.")
+        # Debug: Show available columns and metrics
+        with st.expander("🔍 Debug Info (Click to expand)", expanded=False):
+            st.write("**Normalized columns:**", list(df_norm.columns))
+            st.write("**Available metrics:**", available_metrics)
+            st.write("**DataFrame shape:**", df_norm.shape)
+            
+            # Display sample data safely (avoid duplicate column issues)
+            st.write("**Sample data (first 3 rows):**")
+            try:
+                # Convert to dict to avoid PyArrow issues with duplicate columns
+                sample_data = df_norm.head(3).to_dict('records')
+                st.json(sample_data)
+            except Exception as e:
+                st.write("Could not display sample data due to column issues:", str(e))
+                st.write("First 3 rows as text:")
+                for i in range(min(3, len(df_norm))):
+                    st.write(f"Row {i}: {df_norm.iloc[i].to_dict()}")
+        
+        # Validate data integrity
+        validation_issues = []
+        
+        # Check for required columns
+        expected_metrics = ['revenue_tcv_usd', 'iyr_usd', 'margin_usd']
+        found_metrics = [col for col in expected_metrics if col in df_norm.columns]
+        
+        if not found_metrics:
+            validation_issues.append(f"❌ No expected metric columns found. Expected: {expected_metrics}")
+        else:
+            st.success(f"✅ Found metric columns: {found_metrics}")
+        
+        # Check for dimension columns
+        expected_dimensions = ['account_name', 'industry_vertical', 'product_name', 'sales_stage']
+        found_dimensions = [col for col in expected_dimensions if col in df_norm.columns]
+        
+        if not found_dimensions:
+            validation_issues.append(f"❌ No expected dimension columns found. Expected: {expected_dimensions}")
+        else:
+            st.success(f"✅ Found dimension columns: {found_dimensions}")
+        
+        # Show validation issues
+        for issue in validation_issues:
+            st.error(issue)
+        
+        if validation_issues:
+            st.warning("⚠️ Data validation issues detected. Some features may not work correctly.")
             return
         
         st.markdown("---")
@@ -245,10 +313,62 @@ class ManagementInformationView:
                 label_visibility="collapsed"
             )
         
+        # Validate selected_metric
+        if selected_metric not in available_metrics:
+            st.error(f"❌ Invalid metric selected: {selected_metric}")
+            st.error(f"❌ Available metrics: {available_metrics}")
+            return
+            
+        if not selected_metric:
+            st.error("❌ No metric selected")
+            return
+        
         st.markdown("---")
         
-        # Convert metric to numeric
-        df_norm[selected_metric] = pd.to_numeric(df_norm[selected_metric], errors='coerce').fillna(0)
+        # Validate selected_metric has usable data
+        metric_series = df_norm[selected_metric]
+        st.info(f"📊 Selected metric: `{selected_metric}`")
+        st.info(f"📊 Data type: {metric_series.dtype}")
+        st.info(f"📊 Non-null values: {metric_series.notna().sum()} / {len(metric_series)}")
+        st.info(f"📊 Sample values: {metric_series.dropna().head(3).tolist()}")
+        
+        # Check if we can convert to numeric
+        if metric_series.dtype == 'object':
+            # Try to convert a sample to see if it's numeric
+            sample_values = metric_series.dropna().head(5).tolist()
+            numeric_samples = []
+            for val in sample_values:
+                try:
+                    float(val)
+                    numeric_samples.append(val)
+                except (ValueError, TypeError):
+                    continue
+            
+            if len(numeric_samples) == 0:
+                st.error(f"❌ Column '{selected_metric}' contains no numeric values. Sample values: {sample_values}")
+                return
+        
+        # Convert metric to numeric - with error handling
+        if selected_metric not in df_norm.columns:
+            st.error(f"❌ Column '{selected_metric}' not found in data. Available columns: {list(df_norm.columns)}")
+            st.error(f"❌ Selected metric: {selected_metric}")
+            st.error(f"❌ Available metrics: {available_metrics}")
+            return
+            
+        # Check if the column has any data
+        if df_norm[selected_metric].empty:
+            st.warning(f"⚠️ Column '{selected_metric}' is empty.")
+            return
+            
+        # Convert to numeric safely
+        try:
+            df_norm[selected_metric] = pd.to_numeric(df_norm[selected_metric], errors='coerce').fillna(0)
+            st.success(f"✅ Successfully converted '{selected_metric}' to numeric")
+        except Exception as e:
+            st.error(f"❌ Error converting '{selected_metric}' to numeric: {str(e)}")
+            st.info(f"💡 Column data type: {df_norm[selected_metric].dtype}")
+            st.info(f"💡 Sample values: {df_norm[selected_metric].dropna().head(5).tolist()}")
+            return
         
         # Summary metrics
         st.markdown("**📈 Summary Metrics:**")

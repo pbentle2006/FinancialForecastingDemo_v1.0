@@ -18,11 +18,35 @@ class ScenarioManager:
             st.session_state.scenarios = {
                 'Base Case': {
                     'created': datetime.now(),
-                    'description': 'Base case forecast',
+                    'description': 'Base case revenue forecast',
                     'assumptions': {
-                        'revenue_growth': 5.0,
-                        'margin_target': 28.0,
-                        'win_rate': 40.0
+                        'growth_rate': 5.0,        # Quarterly growth %
+                        'seasonal_adjustment': 0.0, # Seasonal variation
+                        'market_share': 0.0,       # Market share changes
+                        'new_customer_growth': 0.0, # New customer acquisition
+                        'existing_customer_growth': 0.0  # Existing customer expansion
+                    }
+                },
+                'Optimistic': {
+                    'created': datetime.now(),
+                    'description': 'Aggressive growth scenario',
+                    'assumptions': {
+                        'growth_rate': 12.0,
+                        'seasonal_adjustment': 2.0,
+                        'market_share': 3.0,
+                        'new_customer_growth': 15.0,
+                        'existing_customer_growth': 8.0
+                    }
+                },
+                'Conservative': {
+                    'created': datetime.now(),
+                    'description': 'Conservative growth scenario',
+                    'assumptions': {
+                        'growth_rate': 1.0,
+                        'seasonal_adjustment': -1.0,
+                        'market_share': -1.0,
+                        'new_customer_growth': -5.0,
+                        'existing_customer_growth': -2.0
                     }
                 }
             }
@@ -349,37 +373,34 @@ class ScenarioManager:
             st.rerun()
     
     def show_compact_assumptions(self, scenario_name):
-        """Show a compact view of scenario assumptions at the top of the page"""
+        """Show a compact view of revenue assumptions at the top of the page"""
         assumptions = self.get_scenario_assumptions(scenario_name)
         if not assumptions:
             return
             
         # Create a container with a light background
         with st.container():
-            st.markdown("### ⚙️ Current Scenario Assumptions")
+            st.markdown("### 📊 Revenue Assumptions")
             
             # Display assumptions in columns
             col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
             
             with col1:
                 st.metric(
-                    "Revenue Growth",
-                    f"{assumptions.get('revenue_growth', 0.0):.1f}%"
+                    "Growth Rate",
+                    f"{assumptions.get('growth_rate', 0.0):.1f}%"
                 )
             
             with col2:
                 st.metric(
-                    "Margin Target",
-                    f"{assumptions.get('margin_target', 0.0):.1f}%"
+                    "Seasonal Adj",
+                    f"{assumptions.get('seasonal_adjustment', 0.0):.1f}%"
                 )
             
             with col3:
-                win_rates = assumptions.get('win_rates', {})
-                # Show average win rate or most common stage win rate
-                avg_win_rate = sum(win_rates.values()) / len(win_rates) if win_rates else 40.0
                 st.metric(
-                    "Avg Win Rate",
-                    f"{avg_win_rate:.1f}%"
+                    "Market Share",
+                    f"{assumptions.get('market_share', 0.0):.1f}%"
                 )
             
             with col4:
@@ -393,20 +414,21 @@ class ScenarioManager:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Show stage win rates in a compact format
-            win_rates = assumptions.get('win_rates', {})
-            if win_rates:
-                stage_cols = st.columns(len(win_rates))
-                for i, (stage, rate) in enumerate(sorted(win_rates.items())):
-                    with stage_cols[i]:
-                        st.caption(f"{stage}: {rate:.0f}%")
+            # Show additional assumptions in a compact format
+            st.markdown("**Additional Factors:**")
+            add_col1, add_col2 = st.columns(2)
+            with add_col1:
+                st.caption(f"New Customers: {assumptions.get('new_customer_growth', 0.0):.1f}%")
+            with add_col2:
+                st.caption(f"Existing Growth: {assumptions.get('existing_customer_growth', 0.0):.1f}%")
         
         st.markdown("---")
     
     def render_assumptions_editor(self, scenario_name):
-        """Render assumptions editor for a scenario"""
+        """Render revenue assumptions editor for a scenario"""
         
-        st.markdown(f"### ⚙️ Scenario Assumptions - {scenario_name}")
+        st.markdown(f"<a id='scenario-assumptions'></a>", unsafe_allow_html=True)
+        st.markdown(f"### ⚙️ Edit Revenue Assumptions - {scenario_name}")
         
         assumptions = self.get_scenario_assumptions(scenario_name)
         
@@ -414,41 +436,94 @@ class ScenarioManager:
             st.info("No assumptions defined for this scenario")
             return
         
-        col1, col2, col3 = st.columns(3)
+        # Revenue Growth Assumptions
+        st.markdown("#### 📈 Revenue Growth Assumptions")
+        st.markdown("Adjust the key drivers of revenue growth:")
+        
+        col1, col2 = st.columns(2)
         
         with col1:
-            revenue_growth = st.number_input(
-                "Revenue Growth (% QoQ)",
-                value=assumptions.get('revenue_growth', 5.0),
+            growth_rate = st.slider(
+                "Quarterly Growth Rate (%)",
+                min_value=-10.0,
+                max_value=20.0,
+                value=assumptions.get('growth_rate', 5.0),
                 step=0.5,
-                key=f"assumption_revenue_{scenario_name}"
+                key=f"growth_rate_{scenario_name}",
+                help="Expected quarter-over-quarter revenue growth percentage"
+            )
+            
+            seasonal_adjustment = st.slider(
+                "Seasonal Adjustment (%)",
+                min_value=-15.0,
+                max_value=15.0,
+                value=assumptions.get('seasonal_adjustment', 0.0),
+                step=1.0,
+                key=f"seasonal_adj_{scenario_name}",
+                help="Seasonal variation in revenue (Q4 typically higher, Q1 typically lower)"
             )
         
         with col2:
-            margin_target = st.number_input(
-                "Margin Target (%)",
-                value=assumptions.get('margin_target', 28.0),
+            market_share = st.slider(
+                "Market Share Change (%)",
+                min_value=-5.0,
+                max_value=10.0,
+                value=assumptions.get('market_share', 0.0),
                 step=0.5,
-                key=f"assumption_margin_{scenario_name}"
+                key=f"market_share_{scenario_name}",
+                help="Change in market share percentage (gaining/losing share)"
             )
-        
-        with col3:
-            win_rate = st.number_input(
-                "Win Rate (%)",
-                value=assumptions.get('win_rate', 40.0),
+            
+            new_customer_growth = st.slider(
+                "New Customer Growth (%)",
+                min_value=-20.0,
+                max_value=50.0,
+                value=assumptions.get('new_customer_growth', 0.0),
                 step=5.0,
-                key=f"assumption_winrate_{scenario_name}"
+                key=f"new_customer_{scenario_name}",
+                help="Growth rate from new customer acquisition"
             )
         
-        if st.button("💾 Save Assumptions", key=f"save_assumptions_{scenario_name}"):
-            updated_assumptions = {
-                'revenue_growth': revenue_growth,
-                'margin_target': margin_target,
-                'win_rate': win_rate
-            }
-            self.update_scenario_assumptions(scenario_name, updated_assumptions)
-            st.success("✅ Assumptions updated!")
-            st.rerun()
+        # Customer Expansion
+        st.markdown("#### 👥 Customer Expansion")
+        existing_customer_growth = st.slider(
+            "Existing Customer Growth (%)",
+            min_value=-15.0,
+            max_value=25.0,
+            value=assumptions.get('existing_customer_growth', 0.0),
+            step=1.0,
+            key=f"existing_customer_{scenario_name}",
+            help="Growth from existing customer expansion and upsells"
+        )
+        
+        # Save button
+        col1, col2, col3 = st.columns([1, 1, 4])
+        with col1:
+            if st.button("💾 Save Assumptions", key=f"save_assumptions_{scenario_name}", type="primary"):
+                updated_assumptions = {
+                    'growth_rate': growth_rate,
+                    'seasonal_adjustment': seasonal_adjustment,
+                    'market_share': market_share,
+                    'new_customer_growth': new_customer_growth,
+                    'existing_customer_growth': existing_customer_growth
+                }
+                self.update_scenario_assumptions(scenario_name, updated_assumptions)
+                st.success("✅ Assumptions updated!")
+                st.rerun()
+        
+        with col2:
+            if st.button("🔄 Reset to Default", key=f"reset_assumptions_{scenario_name}"):
+                # Reset to Base Case defaults
+                default_assumptions = {
+                    'growth_rate': 5.0,
+                    'seasonal_adjustment': 0.0,
+                    'market_share': 0.0,
+                    'new_customer_growth': 0.0,
+                    'existing_customer_growth': 0.0
+                }
+                self.update_scenario_assumptions(scenario_name, default_assumptions)
+                st.success("🔄 Assumptions reset to defaults!")
+                st.rerun()
         
         # Show scenario info
         with st.expander("📋 Scenario Details"):

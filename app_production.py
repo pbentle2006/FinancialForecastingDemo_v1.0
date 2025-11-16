@@ -20,6 +20,9 @@ from scenario_manager import ScenarioManager
 # Import new revenue forecasting components
 from revenue_forecasting_dashboard import RevenueForecastingDashboard
 
+# Import AI insights components
+from ai_insights_interface import AIInsightsInterface
+
 # Import existing components
 from data_transformer import DataTransformer
 
@@ -380,7 +383,7 @@ elif st.session_state.workflow_stage == 'forecast':
         # View selector
         view_type = st.radio(
             "Select View",
-            ["💰 Revenue Forecasting", "📊 Dynamic Reporting"],
+            ["💰 Revenue Forecasting", "📊 Dynamic Reporting", "🤖 AI Insights"],
             horizontal=True,
             key="view_selector"
         )
@@ -437,6 +440,13 @@ elif st.session_state.workflow_stage == 'forecast':
                 if available_dims:
                     selected_dim = st.session_state.get(f"dimension_{active_scenario}", list(available_dims.keys())[0])
                     dynamic_report.set_report_data(edited_df, active_scenario, selected_dim)
+        
+        elif "AI Insights" in view_type:
+            # AI Insights View
+            ai_insights = AIInsightsInterface()
+            
+            # Render AI insights interface
+            ai_insights.render_ai_insights(scenario_data=None)
         
         # Assumptions editor
         st.markdown("---")
